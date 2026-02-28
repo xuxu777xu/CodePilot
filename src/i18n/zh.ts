@@ -220,6 +220,7 @@ const zh: Record<TranslationKey, string> = {
 
   // ── Plugin Marketplace ────────────────────────────────────────
   'pluginMarket.title': '插件',
+  'pluginMarket.subtitle': 'Claude 官方插件市场',
   'pluginMarket.search': '搜索插件...',
   'pluginMarket.loading': '加载插件中...',
   'pluginMarket.noPlugins': '暂无可用插件',
@@ -251,6 +252,9 @@ const zh: Record<TranslationKey, string> = {
   'pluginMarket.error': '加载插件失败',
   'pluginMarket.allCategories': '全部',
   'pluginMarket.marketplace': '市场',
+  'pluginMarket.installedTab': '已安装',
+  'pluginMarket.noInstalledPlugins': '暂无已安装插件',
+  'pluginMarket.noInstalledPluginsDesc': '从插件市场安装插件',
   'pluginMarket.category.code-intelligence': '代码智能',
   'pluginMarket.category.external-integrations': '集成',
   'pluginMarket.category.development-workflows': '工作流',

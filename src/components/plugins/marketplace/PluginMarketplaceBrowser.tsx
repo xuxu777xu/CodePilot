@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
@@ -13,21 +13,12 @@ import { PluginMarketplaceCard } from "./PluginMarketplaceCard";
 import { PluginMarketplaceDetail } from "./PluginMarketplaceDetail";
 import { cn } from "@/lib/utils";
 import type { MarketplacePlugin } from "@/types";
-import type { TranslationKey } from "@/i18n";
 
-const CATEGORIES = [
-  { value: "", key: "pluginMarket.allCategories" },
-  { value: "code-intelligence", key: "pluginMarket.category.code-intelligence" },
-  { value: "external-integrations", key: "pluginMarket.category.external-integrations" },
-  { value: "development-workflows", key: "pluginMarket.category.development-workflows" },
-  { value: "output-styles", key: "pluginMarket.category.output-styles" },
-  { value: "other", key: "pluginMarket.category.other" },
-] as const;
 
 export function PluginMarketplaceBrowser() {
   const { t } = useTranslation();
+  const [tab, setTab] = useState<"marketplace" | "installed">("marketplace");
   const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("");
   const [results, setResults] = useState<MarketplacePlugin[]>([]);
   const [selected, setSelected] = useState<MarketplacePlugin | null>(null);
   const [loading, setLoading] = useState(false);
@@ -35,13 +26,12 @@ export function PluginMarketplaceBrowser() {
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
 
   const doSearch = useCallback(
-    async (query: string, cat: string) => {
+    async (query: string) => {
       setLoading(true);
       setError(null);
       try {
         const params = new URLSearchParams();
         if (query) params.set("q", query);
-        if (cat) params.set("category", cat);
         const res = await fetch(`/api/plugins/marketplace/browse?${params}`);
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
@@ -61,42 +51,55 @@ export function PluginMarketplaceBrowser() {
 
   // Initial load
   useEffect(() => {
-    doSearch("", "");
+    doSearch("");
   }, [doSearch]);
 
   // Debounced search
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      doSearch(search, category);
+      doSearch(search);
     }, 300);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [search, category, doSearch]);
+  }, [search, doSearch]);
 
   const handleInstallComplete = useCallback(() => {
-    doSearch(search, category);
-  }, [search, category, doSearch]);
+    doSearch(search);
+  }, [search, doSearch]);
+
+  const displayResults = useMemo(
+    () => tab === "installed" ? results.filter((p) => p.isInstalled) : results,
+    [tab, results]
+  );
 
   return (
     <div className="flex flex-col h-full">
-      {/* Category filter bar */}
-      <div className="flex items-center gap-1 mb-3 flex-wrap">
-        {CATEGORIES.map((cat) => (
-          <button
-            key={cat.value}
-            className={cn(
-              "px-2.5 py-1 text-xs font-medium rounded-md transition-colors",
-              category === cat.value
-                ? "bg-accent text-accent-foreground"
-                : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
-            )}
-            onClick={() => setCategory(cat.value)}
-          >
-            {t(cat.key as TranslationKey)}
-          </button>
-        ))}
+      {/* Tab switcher */}
+      <div className="flex items-center gap-1 mb-3">
+        <button
+          className={cn(
+            "px-2.5 py-1 text-xs font-medium rounded-md transition-colors",
+            tab === "marketplace"
+              ? "bg-accent text-accent-foreground"
+              : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+          )}
+          onClick={() => setTab("marketplace")}
+        >
+          {t("pluginMarket.marketplace")}
+        </button>
+        <button
+          className={cn(
+            "px-2.5 py-1 text-xs font-medium rounded-md transition-colors",
+            tab === "installed"
+              ? "bg-accent text-accent-foreground"
+              : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+          )}
+          onClick={() => setTab("installed")}
+        >
+          {t("pluginMarket.installedTab")}
+        </button>
       </div>
 
       {/* Main content */}
@@ -135,25 +138,31 @@ export function PluginMarketplaceBrowser() {
                   <p className="text-[10px] text-center">{error}</p>
                 </div>
               )}
-              {!loading && !error && results.length === 0 && (
+              {!loading && !error && displayResults.length === 0 && (
                 <div className="flex flex-col items-center gap-2 py-8 text-muted-foreground">
                   <HugeiconsIcon
                     icon={Plug01Icon}
                     className="h-8 w-8 opacity-40"
                   />
                   <p className="text-xs">
-                    {search
-                      ? t("pluginMarket.noResults")
-                      : t("pluginMarket.noPlugins")}
+                    {tab === "installed"
+                      ? t("pluginMarket.noInstalledPlugins")
+                      : search
+                        ? t("pluginMarket.noResults")
+                        : t("pluginMarket.noPlugins")}
                   </p>
-                  {!search && (
+                  {tab === "installed" ? (
+                    <p className="text-[10px] text-center px-4">
+                      {t("pluginMarket.noInstalledPluginsDesc")}
+                    </p>
+                  ) : !search ? (
                     <p className="text-[10px] text-center px-4">
                       {t("pluginMarket.noPluginsDesc")}
                     </p>
-                  )}
+                  ) : null}
                 </div>
               )}
-              {results.map((plugin) => (
+              {displayResults.map((plugin) => (
                 <PluginMarketplaceCard
                   key={`${plugin.marketplace}:${plugin.name}`}
                   plugin={plugin}

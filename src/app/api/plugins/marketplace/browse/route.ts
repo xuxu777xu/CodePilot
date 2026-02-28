@@ -11,31 +11,47 @@ function getMarketplacesDir(): string {
 function getInstalledPlugins(): Map<string, { scope: string }> {
   const installed = new Map<string, { scope: string }>();
 
-  // Read from ~/.claude/settings.json
-  const settingsFiles: Array<{ path: string; scope: string }> = [
-    { path: path.join(os.homedir(), ".claude", "settings.json"), scope: "user" },
-  ];
-
-  for (const sf of settingsFiles) {
-    try {
-      if (!fs.existsSync(sf.path)) continue;
-      const raw = JSON.parse(fs.readFileSync(sf.path, "utf-8"));
-      const plugins = raw.enabledPlugins || raw.plugins || {};
-      if (typeof plugins === "object") {
-        for (const name of Object.keys(plugins)) {
-          installed.set(name, { scope: sf.scope });
-        }
+  // Primary source: ~/.claude/plugins/installed_plugins.json
+  const installedPluginsPath = path.join(
+    os.homedir(), ".claude", "plugins", "installed_plugins.json"
+  );
+  try {
+    if (fs.existsSync(installedPluginsPath)) {
+      const raw = JSON.parse(fs.readFileSync(installedPluginsPath, "utf-8"));
+      const plugins = raw.plugins || {};
+      for (const [key, entries] of Object.entries(plugins)) {
+        // key format: "name@marketplace"
+        const pluginName = key.split("@")[0];
+        const arr = entries as Array<{ scope?: string }>;
+        const scope = arr[0]?.scope || "user";
+        installed.set(pluginName, { scope });
+        installed.set(key, { scope });
       }
-      // Also check array format
-      if (Array.isArray(plugins)) {
-        for (const p of plugins) {
-          const name = typeof p === "string" ? p : p?.name;
-          if (name) installed.set(name, { scope: sf.scope });
-        }
-      }
-    } catch {
-      // ignore
     }
+  } catch {
+    // ignore
+  }
+
+  // Fallback: ~/.claude/settings.json enabledPlugins
+  const settingsPath = path.join(os.homedir(), ".claude", "settings.json");
+  try {
+    if (fs.existsSync(settingsPath)) {
+      const raw = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
+      const plugins = raw.enabledPlugins || {};
+      if (typeof plugins === "object" && !Array.isArray(plugins)) {
+        for (const key of Object.keys(plugins)) {
+          const pluginName = key.split("@")[0];
+          if (!installed.has(pluginName)) {
+            installed.set(pluginName, { scope: "user" });
+          }
+          if (!installed.has(key)) {
+            installed.set(key, { scope: "user" });
+          }
+        }
+      }
+    }
+  } catch {
+    // ignore
   }
 
   return installed;

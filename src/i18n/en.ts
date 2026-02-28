@@ -223,6 +223,7 @@ const en = {
 
   // ── Plugin Marketplace ────────────────────────────────────────
   'pluginMarket.title': 'Plugins',
+  'pluginMarket.subtitle': 'Claude Official Plugin Marketplace',
   'pluginMarket.search': 'Search plugins...',
   'pluginMarket.loading': 'Loading plugins...',
   'pluginMarket.noPlugins': 'No plugins available',
@@ -254,6 +255,9 @@ const en = {
   'pluginMarket.error': 'Failed to load plugins',
   'pluginMarket.allCategories': 'All',
   'pluginMarket.marketplace': 'Marketplace',
+  'pluginMarket.installedTab': 'Installed',
+  'pluginMarket.noInstalledPlugins': 'No installed plugins',
+  'pluginMarket.noInstalledPluginsDesc': 'Install plugins from the marketplace',
   'pluginMarket.category.code-intelligence': 'Code Intelligence',
   'pluginMarket.category.external-integrations': 'Integrations',
   'pluginMarket.category.development-workflows': 'Workflows',
