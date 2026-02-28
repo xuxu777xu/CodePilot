@@ -311,23 +311,23 @@ export function ChatListPanel({ open, width }: ChatListPanelProps) {
   };
 
   // Check which working directories no longer exist on disk.
-  // Derive a stable key from the sorted unique dirs so the effect only
-  // re-runs when the actual set of directories changes, not on every
-  // sessions array reference change.
-  const uniqueDirs = useMemo(
-    () => [...new Set(sessions.map(s => s.working_directory).filter(Boolean))].sort(),
+  // Only runs on mount and when the tab regains focus (visibilitychange),
+  // debounced to avoid bursts of requests.
+  const uniqueDirsKey = useMemo(
+    () => JSON.stringify([...new Set(sessions.map(s => s.working_directory).filter(Boolean))].sort()),
     [sessions]
   );
-  const dirKey = uniqueDirs.join('\0');
+  const dirCheckTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
 
-  useEffect(() => {
-    if (uniqueDirs.length === 0) return;
-
-    let cancelled = false;
-    (async () => {
+  const checkMissingDirs = useCallback(() => {
+    const dirs: string[] = JSON.parse(uniqueDirsKey);
+    if (dirs.length === 0) return;
+    if (dirCheckTimerRef.current) clearTimeout(dirCheckTimerRef.current);
+    dirCheckTimerRef.current = setTimeout(async () => {
       const missing = new Set<string>();
       await Promise.all(
-        uniqueDirs.map(async (dir) => {
+        dirs.map(async (dir) => {
           try {
             const res = await fetch(`/api/files/browse?dir=${encodeURIComponent(dir)}`);
             if (!res.ok) missing.add(dir);
@@ -336,10 +336,24 @@ export function ChatListPanel({ open, width }: ChatListPanelProps) {
           }
         })
       );
-      if (!cancelled) setMissingDirs(missing);
-    })();
-    return () => { cancelled = true; };
-  }, [dirKey]); // eslint-disable-line react-hooks/exhaustive-deps
+      if (mountedRef.current) setMissingDirs(missing);
+    }, 1000);
+  }, [uniqueDirsKey]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    checkMissingDirs();
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') checkMissingDirs();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      mountedRef.current = false;
+      document.removeEventListener('visibilitychange', onVisibility);
+      if (dirCheckTimerRef.current) clearTimeout(dirCheckTimerRef.current);
+    };
+  }, [checkMissingDirs]);
 
   const isSearching = searchQuery.length > 0;
 
