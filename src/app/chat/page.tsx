@@ -6,6 +6,7 @@ import type { Message, SSEEvent, SessionResponse, TokenUsage, PermissionRequestE
 import { MessageList } from '@/components/chat/MessageList';
 import { MessageInput } from '@/components/chat/MessageInput';
 import { usePanel } from '@/hooks/usePanel';
+import { formatSSEError } from '@/hooks/useSSEStream';
 
 interface ToolUseInfo {
   id: string;
@@ -252,7 +253,7 @@ export default function NewChatPage() {
                   break;
                 }
                 case 'error': {
-                  accumulated += '\n\n**Error:** ' + event.data;
+                  accumulated += '\n\n**Error:** ' + formatSSEError(event.data);
                   setStreamingContent(accumulated);
                   break;
                 }

@@ -15,7 +15,7 @@ import {
   PlusSignIcon,
   FolderOpenIcon,
 } from "@hugeicons/core-free-icons";
-import { Columns2, X } from "lucide-react";
+import { Columns2, X, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -130,6 +130,7 @@ export function ChatListPanel({ open, width }: ChatListPanelProps) {
   );
   const [hoveredFolder, setHoveredFolder] = useState<string | null>(null);
   const [creatingChat, setCreatingChat] = useState(false);
+  const [missingDirs, setMissingDirs] = useState<Set<string>>(new Set());
 
   const handleFolderSelect = useCallback(async (path: string) => {
     try {
@@ -308,6 +309,37 @@ export function ChatListPanel({ open, width }: ChatListPanelProps) {
       // Silently fail
     }
   };
+
+  // Check which working directories no longer exist on disk.
+  // Derive a stable key from the sorted unique dirs so the effect only
+  // re-runs when the actual set of directories changes, not on every
+  // sessions array reference change.
+  const uniqueDirs = useMemo(
+    () => [...new Set(sessions.map(s => s.working_directory).filter(Boolean))].sort(),
+    [sessions]
+  );
+  const dirKey = uniqueDirs.join('\0');
+
+  useEffect(() => {
+    if (uniqueDirs.length === 0) return;
+
+    let cancelled = false;
+    (async () => {
+      const missing = new Set<string>();
+      await Promise.all(
+        uniqueDirs.map(async (dir) => {
+          try {
+            const res = await fetch(`/api/files/browse?dir=${encodeURIComponent(dir)}`);
+            if (!res.ok) missing.add(dir);
+          } catch {
+            missing.add(dir);
+          }
+        })
+      );
+      if (!cancelled) setMissingDirs(missing);
+    })();
+    return () => { cancelled = true; };
+  }, [dirKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const isSearching = searchQuery.length > 0;
 
@@ -545,6 +577,18 @@ export function ChatListPanel({ open, width }: ChatListPanelProps) {
                     <span className="flex-1 truncate text-[13px] font-medium text-sidebar-foreground">
                       {group.displayName}
                     </span>
+                    {group.workingDirectory && missingDirs.has(group.workingDirectory) && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="flex h-4 w-4 shrink-0 items-center justify-center">
+                            <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="right" className="max-w-xs">
+                          <p className="text-xs">{t('chatList.dirNotFound')}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
                     {/* New chat in project button (on hover) */}
                     {group.workingDirectory !== "" && (
                       <Tooltip>

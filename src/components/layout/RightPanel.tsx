@@ -50,7 +50,7 @@ export function RightPanel({ width }: RightPanelProps) {
 
   if (!panelOpen) {
     return (
-      <div className="flex flex-col items-center gap-2 bg-background p-2">
+      <div className="flex flex-col items-center gap-2 bg-background px-2 pb-2 pt-12">
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -71,7 +71,7 @@ export function RightPanel({ width }: RightPanelProps) {
   return (
     <aside className="hidden h-full shrink-0 flex-col overflow-hidden bg-background lg:flex" style={{ width: width ?? 288 }}>
       {/* Header */}
-      <div className="flex h-12 mt-5 shrink-0 items-center justify-between px-4">
+      <div className="flex h-12 mt-12 shrink-0 items-center justify-between px-4">
         <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
           {t('panel.tasks')}
         </span>

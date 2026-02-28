@@ -1,6 +1,23 @@
 import { useRef, useCallback } from 'react';
 import type { SSEEvent, TokenUsage, PermissionRequestEvent } from '@/types';
 
+/**
+ * Format SSE error data for user display.
+ * Detects structured error codes (e.g. WORKING_DIR_NOT_FOUND) and
+ * returns a human-readable message; falls back to raw string otherwise.
+ */
+export function formatSSEError(eventData: string): string {
+  try {
+    const parsed = JSON.parse(eventData);
+    if (parsed.error_code === 'WORKING_DIR_NOT_FOUND') {
+      return `Project directory no longer exists: \`${parsed.working_directory}\`\n\nPlease select a different project directory from the folder picker in the toolbar below.`;
+    }
+  } catch {
+    // Not JSON, use as-is
+  }
+  return eventData;
+}
+
 interface ToolUseInfo {
   id: string;
   name: string;
@@ -147,7 +164,7 @@ function handleSSEEvent(
     }
 
     case 'error': {
-      const next = accumulated + '\n\n**Error:** ' + event.data;
+      const next = accumulated + '\n\n**Error:** ' + formatSSEError(event.data);
       callbacks.onError(next);
       return next;
     }

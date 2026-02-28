@@ -363,6 +363,21 @@ export function streamClaude(options: ClaudeStreamOptions): ReadableStream<strin
           }
         }
 
+        // Pre-check: working directory must exist on disk
+        if (workingDirectory && !fs.existsSync(workingDirectory)) {
+          controller.enqueue(formatSSE({
+            type: 'error',
+            data: JSON.stringify({
+              error_code: 'WORKING_DIR_NOT_FOUND',
+              message: `Project directory not found: ${workingDirectory}`,
+              working_directory: workingDirectory,
+            }),
+          }));
+          controller.enqueue(formatSSE({ type: 'done', data: '' }));
+          controller.close();
+          return;
+        }
+
         // Check if dangerously_skip_permissions is enabled in app settings
         const skipPermissions = getSetting('dangerously_skip_permissions') === 'true';
 
@@ -887,7 +902,18 @@ export function streamClaude(options: ClaudeStreamOptions): ReadableStream<strin
         if (error instanceof Error) {
           const code = (error as NodeJS.ErrnoException).code;
           if (code === 'ENOENT' || rawMessage.includes('ENOENT') || rawMessage.includes('spawn')) {
-            errorMessage = `Claude Code CLI not found. Please ensure Claude Code is installed and available in your PATH.\n\nOriginal error: ${rawMessage}`;
+            // TOCTOU fallback: the pre-check at stream start (line ~367) should
+            // catch this, but the directory may have been deleted between the
+            // pre-check and the spawn call. This is intentional defensive redundancy.
+            if (workingDirectory && !fs.existsSync(workingDirectory)) {
+              errorMessage = JSON.stringify({
+                error_code: 'WORKING_DIR_NOT_FOUND',
+                message: `Project directory not found: ${workingDirectory}`,
+                working_directory: workingDirectory,
+              });
+            } else {
+              errorMessage = `Claude Code CLI not found. Please ensure Claude Code is installed and available in your PATH.\n\nOriginal error: ${rawMessage}`;
+            }
           } else if (rawMessage.includes('exited with code 1') || rawMessage.includes('exit code 1')) {
             const providerHint = activeProvider?.name ? ` (Provider: ${activeProvider.name})` : '';
             const detailHint = extraDetail ? `\n\nDetails: ${extraDetail}` : '';
